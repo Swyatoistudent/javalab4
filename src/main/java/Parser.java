@@ -1,126 +1,141 @@
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.Scanner;
+
+
+
+
 
 public class Parser {
+    public int active_worker =0;
+    public int position =0;
+    Scanner scanner ;
     FileReader reader;
+    public LinkedList<String> file_strings = new LinkedList<>();
+    public LinkedList<StringBuilder> result = new LinkedList<>();
     FileWriter writer;
 
 
 
     public  Parser(String input_file,String output_file) throws IOException {
-
         reader = new FileReader(input_file);
-        writer = new FileWriter(output_file);
+        scanner = new Scanner(reader);
+        writer = new FileWriter(output_file,true);
 
     }
+    void delimFile(){
 
+        while(scanner.hasNextLine()){
+           String  a=scanner.nextLine();
+            file_strings.addLast(a);
+        }
 
-    void parseFile(char delimeter,String mode) throws IOException {
-        LinkedList<StringBuilder> linkedList = new LinkedList<>();
+    }
+    StringBuilder parseString(String string, char delimeter, String mode,char out_delim) throws IOException {
+
+        StringBuilder linkedList = new StringBuilder();
         int c;
-        int first_comm_char = -1;
-        int end_comm_char = -1;
-        boolean comment = false;
+        if(string.length()==0){
+            return linkedList;
+        }
+
         boolean active = false;
         boolean del = false;
         int first = -1;
         int second = -1;
         int j = 0;
+        char[] chars = string.toCharArray();
         StringBuilder buffer = new StringBuilder();
-        StringBuilder buffer_comm = new StringBuilder();
-        while ((c = reader.read()) != -1) {
+
+        for (char aChar : chars) {
+            c = aChar;
             j++;
 
-            if((char)c == '/'||(char)c=='*'){
-                buffer_comm.append((char)c);
-            }
-            if(buffer_comm.length()>2){
-                buffer_comm = new StringBuilder();
-            }
-            if(buffer_comm.toString().equals("/*")){
-                buffer.deleteCharAt(j-2);
-                comment=true;
-                buffer_comm = new StringBuilder();
 
-            }
 
-            if ((char)c!='\n'&& !comment){
+
+            if ((char) c != '\n' ) {
                 buffer.append((char) c);
             }
-            if(buffer_comm.toString().equals("*/")){
-                j=0;
 
-                comment=false;
-                buffer_comm = new StringBuilder();
-            }
-            if(first==1 && second!=-1 &&buffer.length()!=0&& !del){
+            if (first == 1 && second != -1 && buffer.length() != 0 && !del) {
                 buffer.deleteCharAt(0);
-                buffer.deleteCharAt(second-2);
-                del= true;
+                buffer.deleteCharAt(second - 2);
+                del = true;
             }
-            if (c == '"' ) {
-                if(first==-1) {
+
+            if (c == '"') {
+                if (first == -1) {
                     first = j;
-                }
-                else if(second==-1){
+                } else if (second == -1) {
                     second = j;
                 }
                 active = !active;
             }
-            if (c == '\n'&&!comment) {
 
-                linkedList.addLast(buffer.deleteCharAt(buffer.length()-1));
-                buffer = new StringBuilder();
-                int i = 0;
-                while (i < linkedList.size()) {
-                    String result=String.valueOf(linkedList.get(i));
-
-                    if(mode.equals("parse")) {
-                        writer.write(result);
-                    }
-                    if (mode.equals("len")){
-                        writer.write(String.valueOf(result.length()));
-                    }
-                    writer.write("+");
-                    i++;
-                }
-                writer.write("\n");
-                active = false;
-                linkedList = new LinkedList<>();
-                j=0;
+            if (c == delimeter && !active) {
+                j = 0;
                 first = -1;
                 second = -1;
                 del = false;
-            }
-            if (c == delimeter && !active&& !comment) {
-                j=0;
-                first = -1;
-                second = -1;
-                del =false;
-                buffer.deleteCharAt(buffer.length() - 1);
-                linkedList.addLast(buffer);
+
+                if(mode.equals("parse")) {
+                    buffer.deleteCharAt(buffer.length() - 1);
+                    buffer.append(out_delim);
+                    linkedList.append(buffer);
+                }
+                if(mode.equals("len")){
+                    buffer.deleteCharAt(buffer.length() - 1);
+                    linkedList.append(buffer.length()).append("+");
+                }
                 buffer = new StringBuilder();
             }
 
         }
-        linkedList.addLast(buffer);
-        int i = 0;
-        while (i < linkedList.size()) {
-            String result=String.valueOf(linkedList.get(i));
-            if(mode.equals("parse")) {
-                writer.write(result);
-            }
-            if (mode.equals("len")){
-                writer.write(String.valueOf(result.length()));
-            }
-            writer.write("+");
-            i++;
+        if(mode.equals("parse")) {
+            linkedList.append(buffer);
         }
-
-        writer.close();
+        if(mode.equals("len")){
+            linkedList.append(buffer.length());
+        }
+        return linkedList;
     }
 
-}
+    void parseFile(char delim,String mode,char output_delim, int num_of_worker) throws IOException, InterruptedException {
+        delimFile();
+        int number_strings = file_strings.size();
+        delimFile();
+
+
+
+
+            while(position<number_strings) {
+                System.out.println(active_worker);
+                if(active_worker<num_of_worker) {
+                    worker a = new worker(this, delim, mode,output_delim);
+                    Thr wor = new Thr(a, position);
+                    Thread b = new Thread(wor);
+                    b.start();
+                    active_worker++;
+                    position++;
+                }
+
+            }
+        Thread.sleep(100);
+
+        for (String file_string : file_strings) {
+
+            writer.write(file_string);
+            writer.write("\n");
+
+        }
+            writer.close();
+    }
+        }
+
+
+
+
+
